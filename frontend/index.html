@@ -1,0 +1,1246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NG12 Cancer Risk Assessor</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0f0f0f;
+            --bg-elevated: #1a1a1a;
+            --bg-card: #222222;
+            --bg-hover: #2a2a2a;
+            --border: #333333;
+            --border-light: #444444;
+            --text: #e8e8e8;
+            --text-secondary: #999999;
+            --text-dim: #666666;
+            --accent: #4f9cf7;
+            --accent-glow: rgba(79, 156, 247, 0.15);
+            --accent-hover: #6bb0ff;
+            --danger: #f87171;
+            --danger-bg: rgba(248, 113, 113, 0.08);
+            --warning: #fbbf24;
+            --warning-bg: rgba(251, 191, 36, 0.08);
+            --success: #4ade80;
+            --success-bg: rgba(74, 222, 128, 0.08);
+            --info: #38bdf8;
+            --info-bg: rgba(56, 189, 248, 0.08);
+            --font: 'DM Sans', -apple-system, sans-serif;
+            --mono: 'JetBrains Mono', monospace;
+            --radius: 12px;
+            --radius-sm: 8px;
+            --radius-lg: 16px;
+            --shadow: 0 4px 24px rgba(0,0,0,0.3);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: var(--font);
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
+
+        /* Layout */
+        .app {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        header {
+            background: var(--bg-elevated);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent), #a78bfa);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .logo h1 {
+            font-size: 1rem;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+        }
+
+        .logo .version {
+            font-size: 0.65rem;
+            font-weight: 500;
+            color: var(--accent);
+            background: var(--accent-glow);
+            padding: 2px 8px;
+            border-radius: 10px;
+            letter-spacing: 0.5px;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 2px;
+            background: var(--bg);
+            border-radius: var(--radius-sm);
+            padding: 3px;
+        }
+
+        .tab {
+            padding: 6px 16px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 0.82rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            border-radius: 6px;
+            transition: all 0.2s;
+            font-family: var(--font);
+        }
+
+        .tab:hover { color: var(--text); background: var(--bg-hover); }
+        .tab.active {
+            color: var(--text);
+            background: var(--bg-card);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+
+        /* Main content */
+        .main {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .tab-content { display: none; flex: 1; overflow: hidden; flex-direction: column; }
+        .tab-content.active { display: flex; }
+
+        /* ============================================
+           PART 1: RISK ASSESSMENT
+           ============================================ */
+        .assess-layout {
+            flex: 1;
+            overflow-y: auto;
+            padding: 32px;
+        }
+
+        .assess-center {
+            max-width: 720px;
+            margin: 0 auto;
+        }
+
+        .assess-hero {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .assess-hero h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin-bottom: 8px;
+        }
+
+        .assess-hero p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .select-card {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .select-row {
+            display: flex;
+            gap: 12px;
+        }
+
+        .select-row select {
+            flex: 1;
+            padding: 12px 16px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text);
+            font-family: var(--font);
+            font-size: 0.9rem;
+            appearance: none;
+            cursor: pointer;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+        }
+
+        .select-row select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: var(--font);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+        .btn-primary:active { transform: translateY(0); }
+        .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+        /* Assessment thinking animation */
+        .thinking-card {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            display: none;
+        }
+
+        .thinking-card.active { display: block; }
+
+        .thinking-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .thinking-spinner {
+            width: 24px;
+            height: 24px;
+            border: 2.5px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .thinking-header span {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .thinking-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .thinking-step {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            transition: all 0.4s ease;
+        }
+
+        .thinking-step.active { color: var(--text-secondary); }
+        .thinking-step.done { color: var(--success); }
+
+        .step-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            flex-shrink: 0;
+        }
+
+        .thinking-step .step-icon {
+            background: var(--bg);
+            border: 1px solid var(--border);
+        }
+
+        .thinking-step.active .step-icon {
+            background: var(--accent-glow);
+            border-color: var(--accent);
+        }
+
+        .thinking-step.done .step-icon {
+            background: var(--success-bg);
+            border-color: var(--success);
+        }
+
+        /* Result card */
+        .result-card {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            animation: fadeSlideUp 0.5s ease;
+        }
+
+        @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .result-header {
+            padding: 20px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .result-patient {
+            font-weight: 600;
+            font-size: 1.05rem;
+        }
+
+        .risk-badge {
+            padding: 5px 14px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            font-family: var(--mono);
+        }
+
+        .risk-URGENT_REFERRAL, .risk-VERY_URGENT {
+            background: var(--danger-bg);
+            color: var(--danger);
+            border: 1px solid rgba(248,113,113,0.2);
+        }
+
+        .risk-URGENT_INVESTIGATION {
+            background: var(--warning-bg);
+            color: var(--warning);
+            border: 1px solid rgba(251,191,36,0.2);
+        }
+
+        .risk-SAFETY_NETTING {
+            background: var(--info-bg);
+            color: var(--info);
+            border: 1px solid rgba(56,189,248,0.2);
+        }
+
+        .risk-LOW_RISK {
+            background: var(--success-bg);
+            color: var(--success);
+            border: 1px solid rgba(74,222,128,0.2);
+        }
+
+        .result-body {
+            padding: 24px;
+        }
+
+        .result-section {
+            margin-bottom: 20px;
+            opacity: 0;
+            animation: fadeIn 0.4s ease forwards;
+        }
+
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+
+        .result-section h3 {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            font-family: var(--mono);
+        }
+
+        .result-section p {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        .result-section .typewriter {
+            overflow: hidden;
+        }
+
+        .cancer-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .cancer-tag {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .citation {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            transition: border-color 0.2s;
+        }
+
+        .citation:hover { border-color: var(--accent); }
+
+        .citation-rec {
+            font-family: var(--mono);
+            font-weight: 600;
+            color: var(--accent);
+            font-size: 0.82rem;
+        }
+
+        .citation-page {
+            font-family: var(--mono);
+            font-size: 0.72rem;
+            color: var(--text-dim);
+            margin-left: 8px;
+        }
+
+        .citation-text {
+            font-size: 0.84rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+            line-height: 1.5;
+        }
+
+        /* ============================================
+           PART 2: CHAT
+           ============================================ */
+        .chat-layout {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px 0;
+        }
+
+        .chat-message {
+            padding: 0 24px;
+            margin-bottom: 24px;
+            animation: fadeSlideUp 0.3s ease;
+        }
+
+        .chat-message-inner {
+            max-width: 720px;
+            margin: 0 auto;
+            display: flex;
+            gap: 14px;
+        }
+
+        .chat-avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .chat-message.user .chat-avatar {
+            background: var(--accent);
+            color: white;
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        .chat-message.assistant .chat-avatar {
+            background: linear-gradient(135deg, #a78bfa, var(--accent));
+        }
+
+        .chat-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .chat-role {
+            font-size: 0.78rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: var(--text-secondary);
+        }
+
+        .chat-text {
+            font-size: 0.92rem;
+            line-height: 1.7;
+            color: var(--text);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .chat-text strong { color: var(--accent); font-weight: 600; }
+
+        .chat-sources {
+            margin-top: 10px;
+        }
+
+        .sources-toggle {
+            font-size: 0.78rem;
+            color: var(--accent);
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-family: var(--font);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 0;
+        }
+
+        .sources-toggle:hover { color: var(--accent-hover); }
+
+        .sources-list {
+            display: none;
+            margin-top: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .sources-list.hidden { display: none; }
+
+        .source-chip {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 0.78rem;
+        }
+
+        .source-chip code {
+            font-family: var(--mono);
+            color: var(--accent);
+            font-size: 0.72rem;
+        }
+
+        .source-chip .excerpt {
+            color: var(--text-dim);
+            margin-top: 2px;
+            font-size: 0.75rem;
+            line-height: 1.4;
+        }
+
+        /* Typing indicator */
+        .typing-row {
+            padding: 0 24px;
+            margin-bottom: 24px;
+            display: none;
+        }
+
+        .typing-row.active { display: block; }
+
+        .typing-inner {
+            max-width: 720px;
+            margin: 0 auto;
+            display: flex;
+            gap: 14px;
+        }
+
+        .typing-bubble {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 12px 0;
+        }
+
+        .typing-dot {
+            width: 7px;
+            height: 7px;
+            background: var(--text-dim);
+            border-radius: 50%;
+            animation: typingBounce 1.4s infinite ease-in-out;
+        }
+
+        .typing-dot:nth-child(2) { animation-delay: 0.16s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.32s; }
+
+        @keyframes typingBounce {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+            30% { transform: translateY(-6px); opacity: 1; }
+        }
+
+        .typing-label {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            margin-left: 4px;
+        }
+
+        /* Chat input */
+        .chat-input-area {
+            padding: 16px 24px 24px;
+            background: linear-gradient(to top, var(--bg) 60%, transparent);
+        }
+
+        .chat-input-box {
+            max-width: 720px;
+            margin: 0 auto;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: flex-end;
+            padding: 8px;
+            transition: border-color 0.2s;
+        }
+
+        .chat-input-box:focus-within {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .chat-input-box textarea {
+            flex: 1;
+            background: none;
+            border: none;
+            color: var(--text);
+            font-family: var(--font);
+            font-size: 0.9rem;
+            padding: 8px 12px;
+            resize: none;
+            max-height: 120px;
+            line-height: 1.5;
+        }
+
+        .chat-input-box textarea:focus { outline: none; }
+
+        .chat-input-box textarea::placeholder { color: var(--text-dim); }
+
+        .send-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            border: none;
+            background: var(--accent);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .send-btn:hover { background: var(--accent-hover); }
+        .send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .send-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .chat-hint {
+            text-align: center;
+            font-size: 0.72rem;
+            color: var(--text-dim);
+            margin-top: 8px;
+            max-width: 720px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* Welcome state */
+        .chat-welcome {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+            padding: 40px 24px;
+        }
+
+        .welcome-icon {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, #a78bfa, var(--accent));
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+        }
+
+        .welcome-text {
+            text-align: center;
+        }
+
+        .welcome-text h2 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+            letter-spacing: -0.3px;
+        }
+
+        .welcome-text p {
+            color: var(--text-secondary);
+            font-size: 0.88rem;
+        }
+
+        .suggestion-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            max-width: 560px;
+            width: 100%;
+        }
+
+        .suggestion {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px 16px;
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            text-align: left;
+            font-family: var(--font);
+            transition: all 0.2s;
+            line-height: 1.4;
+        }
+
+        .suggestion:hover {
+            border-color: var(--accent);
+            color: var(--text);
+            background: var(--bg-hover);
+        }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .suggestion-grid { grid-template-columns: 1fr; }
+            .assess-layout { padding: 16px; }
+            header { padding: 0 16px; }
+        }
+
+        /* Error */
+        .error-toast {
+            background: var(--danger-bg);
+            border: 1px solid rgba(248,113,113,0.2);
+            color: var(--danger);
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 0.85rem;
+            margin-bottom: 16px;
+            animation: fadeSlideUp 0.3s ease;
+        }
+
+        .new-session-btn {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.72rem;
+            font-family: var(--font);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .new-session-btn:hover {
+            border-color: var(--text-secondary);
+            color: var(--text);
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <header>
+            <div class="logo">
+                <div class="logo-icon">🏥</div>
+                <h1>NG12 Assessor</h1>
+                <span class="version">NICE NG12</span>
+            </div>
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('assess', this)">📋 Assessment</button>
+                <button class="tab" onclick="switchTab('chat', this)">💬 Chat</button>
+            </div>
+        </header>
+
+        <div class="main">
+            <!-- ============ ASSESSMENT TAB ============ -->
+            <div id="tab-assess" class="tab-content active">
+                <div class="assess-layout">
+                    <div class="assess-center">
+                        <div class="assess-hero">
+                            <h2>Patient Risk Assessment</h2>
+                            <p>Select a patient to assess against NICE NG12 cancer referral guidelines</p>
+                        </div>
+
+                        <div class="select-card">
+                            <div class="select-row">
+                                <select id="patient-select">
+                                    <option value="">Loading patients...</option>
+                                </select>
+                                <button class="btn btn-primary" id="assess-btn" onclick="runAssessment()">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/><path d="M9 14l2 2 4-4"/></svg>
+                                    Assess
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="assess-error"></div>
+
+                        <!-- Thinking animation -->
+                        <div class="thinking-card" id="thinking-card">
+                            <div class="thinking-header">
+                                <div class="thinking-spinner"></div>
+                                <span>Analyzing patient against NG12 guidelines...</span>
+                            </div>
+                            <div class="thinking-steps">
+                                <div class="thinking-step" id="step-1">
+                                    <div class="step-icon">1</div>
+                                    <span>Retrieving patient records</span>
+                                </div>
+                                <div class="thinking-step" id="step-2">
+                                    <div class="step-icon">2</div>
+                                    <span>Searching NG12 guideline sections</span>
+                                </div>
+                                <div class="thinking-step" id="step-3">
+                                    <div class="step-icon">3</div>
+                                    <span>Matching symptoms against referral criteria</span>
+                                </div>
+                                <div class="thinking-step" id="step-4">
+                                    <div class="step-icon">4</div>
+                                    <span>Generating risk assessment with citations</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="assess-result"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============ CHAT TAB ============ -->
+            <div id="tab-chat" class="tab-content">
+                <div class="chat-layout">
+                    <div class="chat-messages" id="chat-messages">
+                        <div class="chat-welcome" id="chat-welcome">
+                            <div class="welcome-icon">💬</div>
+                            <div class="welcome-text">
+                                <h2>Ask about NG12 Guidelines</h2>
+                                <p>I can answer questions about cancer recognition & referral criteria</p>
+                            </div>
+                            <div class="suggestion-grid">
+                                <button class="suggestion" onclick="askSuggestion(this)">What symptoms trigger an urgent referral for lung cancer?</button>
+                                <button class="suggestion" onclick="askSuggestion(this)">Does persistent hoarseness require referral, and at what age?</button>
+                                <button class="suggestion" onclick="askSuggestion(this)">Summarize the referral criteria for visible haematuria</button>
+                                <button class="suggestion" onclick="askSuggestion(this)">What does NG12 say about dyspepsia thresholds?</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="typing-row" id="typing-row">
+                        <div class="typing-inner">
+                            <div class="chat-avatar" style="background: linear-gradient(135deg, #a78bfa, var(--accent));">🏥</div>
+                            <div class="typing-bubble">
+                                <div class="typing-dot"></div>
+                                <div class="typing-dot"></div>
+                                <div class="typing-dot"></div>
+                                <span class="typing-label">Searching guidelines...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chat-input-area">
+                        <div class="chat-input-box">
+                            <textarea id="chat-input" rows="1" placeholder="Ask about NG12 guidelines..." onkeydown="handleChatKey(event)" oninput="autoResize(this)"></textarea>
+                            <button class="send-btn" id="send-btn" onclick="sendChat()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
+                            </button>
+                        </div>
+                        <div class="chat-hint">
+                            Answers are grounded in the NICE NG12 guideline with citations · <button class="new-session-btn" onclick="newSession()">New session</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===================== TABS =====================
+        function switchTab(tabId, btn) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+        }
+
+        // ===================== ASSESSMENT =====================
+        async function loadPatients() {
+            try {
+                const res = await fetch('/patients');
+                const patients = await res.json();
+                const select = document.getElementById('patient-select');
+                select.innerHTML = '<option value="">Select a patient...</option>';
+                patients.forEach(p => {
+                    select.innerHTML += `<option value="${p.patient_id}">${p.patient_id} — ${p.name}</option>`;
+                });
+            } catch (e) { console.error('Failed to load patients:', e); }
+        }
+
+        function animateThinking() {
+            const steps = ['step-1', 'step-2', 'step-3', 'step-4'];
+            let current = 0;
+            const interval = setInterval(() => {
+                if (current > 0) {
+                    document.getElementById(steps[current - 1]).classList.remove('active');
+                    document.getElementById(steps[current - 1]).classList.add('done');
+                    document.getElementById(steps[current - 1]).querySelector('.step-icon').textContent = '✓';
+                }
+                if (current < steps.length) {
+                    document.getElementById(steps[current]).classList.add('active');
+                    current++;
+                } else {
+                    clearInterval(interval);
+                }
+            }, 1500);
+            return interval;
+        }
+
+        async function runAssessment() {
+            const patientId = document.getElementById('patient-select').value;
+            if (!patientId) return;
+
+            const btn = document.getElementById('assess-btn');
+            const thinking = document.getElementById('thinking-card');
+            const errorDiv = document.getElementById('assess-error');
+            const resultDiv = document.getElementById('assess-result');
+
+            btn.disabled = true;
+            errorDiv.innerHTML = '';
+            resultDiv.innerHTML = '';
+
+            // Reset thinking steps
+            ['step-1','step-2','step-3','step-4'].forEach(id => {
+                const el = document.getElementById(id);
+                el.classList.remove('active', 'done');
+                el.querySelector('.step-icon').textContent = id.split('-')[1];
+            });
+
+            thinking.classList.add('active');
+            const thinkingInterval = animateThinking();
+
+            try {
+                const res = await fetch('/assess', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ patient_id: patientId }),
+                });
+
+                clearInterval(thinkingInterval);
+                // Complete all steps
+                ['step-1','step-2','step-3','step-4'].forEach(id => {
+                    const el = document.getElementById(id);
+                    el.classList.remove('active');
+                    el.classList.add('done');
+                    el.querySelector('.step-icon').textContent = '✓';
+                });
+
+                if (!res.ok) throw new Error((await res.json()).detail || 'Assessment failed');
+
+                const data = await res.json();
+                setTimeout(() => {
+                    thinking.classList.remove('active');
+                    renderResult(data);
+                }, 600);
+            } catch (e) {
+                clearInterval(thinkingInterval);
+                thinking.classList.remove('active');
+                errorDiv.innerHTML = `<div class="error-toast">⚠️ ${e.message}</div>`;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function renderResult(data) {
+            const div = document.getElementById('assess-result');
+            const riskClass = `risk-${data.risk_level || 'LOW_RISK'}`;
+
+            let citations = '';
+            if (data.guideline_citations?.length) {
+                citations = data.guideline_citations.map(c => `
+                    <div class="citation">
+                        <span class="citation-rec">Rec ${c.recommendation_id || 'N/A'}</span>
+                        ${c.page ? `<span class="citation-page">Page ${c.page}</span>` : ''}
+                        <div class="citation-text">${esc(c.text || '')}</div>
+                    </div>`).join('');
+            }
+
+            let cancers = '';
+            if (data.suspected_cancers?.length) {
+                cancers = `<div class="result-section" style="animation-delay: 0.2s">
+                    <h3>Suspected Cancers</h3>
+                    <div class="cancer-tags">${data.suspected_cancers.map(c => `<span class="cancer-tag">${esc(c)}</span>`).join('')}</div>
+                </div>`;
+            }
+
+            div.innerHTML = `
+                <div class="result-card">
+                    <div class="result-header">
+                        <span class="result-patient">${esc(data.patient_name || data.patient_id)}</span>
+                        <span class="risk-badge ${riskClass}">${(data.risk_level || '').replace(/_/g, ' ')}</span>
+                    </div>
+                    <div class="result-body">
+                        <div class="result-section" style="animation-delay: 0.1s">
+                            <h3>Recommended Action</h3>
+                            <p>${esc(data.recommended_action || 'N/A')}</p>
+                        </div>
+                        ${cancers}
+                        <div class="result-section" style="animation-delay: 0.3s">
+                            <h3>Clinical Reasoning</h3>
+                            <p class="typewriter" id="reasoning-text"></p>
+                        </div>
+                        ${citations ? `<div class="result-section" style="animation-delay: 0.4s"><h3>NG12 Citations</h3>${citations}</div>` : ''}
+                        ${data.additional_notes ? `<div class="result-section" style="animation-delay: 0.5s"><h3>Additional Notes</h3><p>${esc(data.additional_notes)}</p></div>` : ''}
+                    </div>
+                </div>`;
+
+            // Typewriter effect for reasoning
+            typewrite('reasoning-text', data.reasoning || 'N/A', 8);
+        }
+
+        function typewrite(elementId, text, speed = 10) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            let i = 0;
+            el.textContent = '';
+            const interval = setInterval(() => {
+                // Add characters in chunks for speed
+                const chunk = text.slice(i, i + 3);
+                el.textContent += chunk;
+                i += 3;
+                if (i >= text.length) {
+                    el.textContent = text;
+                    clearInterval(interval);
+                }
+            }, speed);
+        }
+
+        // ===================== CHAT =====================
+        let sessionId = 'sess_' + Math.random().toString(36).substr(2, 9);
+        let chatHasMessages = false;
+
+        function newSession() {
+            fetch(`/chat/${sessionId}`, { method: 'DELETE' }).catch(() => {});
+            sessionId = 'sess_' + Math.random().toString(36).substr(2, 9);
+            chatHasMessages = false;
+            document.getElementById('chat-messages').innerHTML = document.getElementById('chat-messages').querySelector('.chat-welcome') ?
+                document.getElementById('chat-messages').innerHTML :
+                `<div class="chat-welcome" id="chat-welcome">
+                    <div class="welcome-icon">💬</div>
+                    <div class="welcome-text"><h2>Ask about NG12 Guidelines</h2><p>I can answer questions about cancer recognition & referral criteria</p></div>
+                    <div class="suggestion-grid">
+                        <button class="suggestion" onclick="askSuggestion(this)">What symptoms trigger an urgent referral for lung cancer?</button>
+                        <button class="suggestion" onclick="askSuggestion(this)">Does persistent hoarseness require referral, and at what age?</button>
+                        <button class="suggestion" onclick="askSuggestion(this)">Summarize the referral criteria for visible haematuria</button>
+                        <button class="suggestion" onclick="askSuggestion(this)">What does NG12 say about dyspepsia thresholds?</button>
+                    </div>
+                </div>`;
+            // Re-show welcome
+            location.reload();
+        }
+
+        function askSuggestion(btn) {
+            document.getElementById('chat-input').value = btn.textContent;
+            sendChat();
+        }
+
+        function handleChatKey(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendChat();
+            }
+        }
+
+        function autoResize(el) {
+            el.style.height = 'auto';
+            el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+        }
+
+        function addMessage(role, content, citations) {
+            const messages = document.getElementById('chat-messages');
+            const welcome = document.getElementById('chat-welcome');
+            if (welcome) welcome.remove();
+
+            const avatar = role === 'user'
+                ? `<div class="chat-avatar" style="background: var(--accent); color: white; font-weight: 700; font-size: 12px;">S</div>`
+                : `<div class="chat-avatar" style="background: linear-gradient(135deg, #a78bfa, var(--accent));">🏥</div>`;
+
+            const roleName = role === 'user' ? 'You' : 'NG12 Assistant';
+            const msgId = 'msg-' + Date.now();
+
+            let sourcesHtml = '';
+            if (citations?.length) {
+                const sourceItems = citations.map(c => `
+                    <div class="source-chip">
+                        <code>[${esc(c.chunk_id)}]</code> Page ${c.page}
+                        <div class="excerpt">${esc((c.excerpt || '').substring(0, 120))}...</div>
+                    </div>`).join('');
+
+                sourcesHtml = `
+                    <div class="chat-sources">
+                        <button class="sources-toggle" onclick="toggleSources('${msgId}-sources')">
+                            📎 ${citations.length} source(s) ▾
+                        </button>
+                        <div class="sources-list hidden" id="${msgId}-sources">${sourceItems}</div>
+                    </div>`;
+            }
+
+            messages.innerHTML += `
+                <div class="chat-message ${role}">
+                    <div class="chat-message-inner">
+                        ${avatar}
+                        <div class="chat-content">
+                            <div class="chat-role">${roleName}</div>
+                            <div class="chat-text" id="${msgId}">${role === 'user' ? esc(content) : ''}</div>
+                            ${role === 'assistant' ? sourcesHtml : ''}
+                        </div>
+                    </div>
+                </div>`;
+
+            messages.scrollTop = messages.scrollHeight;
+
+            // Typewriter effect for assistant
+            if (role === 'assistant') {
+                typewriteChat(msgId, content);
+            }
+
+            chatHasMessages = true;
+        }
+
+        function typewriteChat(elementId, text, speed = 6) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            let i = 0;
+            el.innerHTML = '';
+            const interval = setInterval(() => {
+                const chunk = text.slice(i, i + 4);
+                i += 4;
+                if (i >= text.length) {
+                    el.innerHTML = formatChat(text);
+                    clearInterval(interval);
+                    document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
+                } else {
+                    el.innerHTML = formatChat(text.slice(0, i));
+                    document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
+                }
+            }, speed);
+        }
+
+        function formatChat(text) {
+            return esc(text)
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/`(.*?)`/g, `<code style="font-family:var(--mono);background:var(--bg);padding:1px 5px;border-radius:4px;font-size:0.84rem;">$1</code>`)
+                .replace(/\[NG12(.*?)\]/g, '<strong style="color:var(--accent)">[NG12$1]</strong>');
+        }
+
+        function toggleSources(id) {
+            document.getElementById(id)?.classList.toggle('hidden');
+        }
+
+        async function sendChat() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (!message) return;
+
+            input.value = '';
+            input.style.height = 'auto';
+            document.getElementById('send-btn').disabled = true;
+
+            addMessage('user', message);
+
+            // Show typing
+            document.getElementById('typing-row').classList.add('active');
+            document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
+
+            try {
+                const res = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId, message }),
+                });
+
+                document.getElementById('typing-row').classList.remove('active');
+
+                if (!res.ok) throw new Error((await res.json()).detail || 'Chat failed');
+
+                const data = await res.json();
+                addMessage('assistant', data.answer, data.citations);
+            } catch (e) {
+                document.getElementById('typing-row').classList.remove('active');
+                addMessage('assistant', `⚠️ Error: ${e.message}`);
+            } finally {
+                document.getElementById('send-btn').disabled = false;
+                input.focus();
+            }
+        }
+
+        // ===================== UTILS =====================
+        function esc(t) {
+            const d = document.createElement('div');
+            d.textContent = t;
+            return d.innerHTML;
+        }
+
+        // ===================== INIT =====================
+        loadPatients();
+    </script>
+</body>
+</html>
