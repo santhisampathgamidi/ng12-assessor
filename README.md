@@ -23,21 +23,21 @@ The application follows a modular, microservices-inspired design with clear sepa
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     Frontend Layer                           │
-│          React + Vite + Tailwind CSS                         │
-│     [Risk Assessment Interface] | [Guideline Chat]           │
+│                     Frontend Layer                          │
+│          React + Vite + Tailwind CSS                        │
+│     [Risk Assessment Interface] | [Guideline Chat]          │
 └────────────────┬────────────────────────┬───────────────────┘
                  │                        │
             POST /assess             POST /chat
                  │                        │
 ┌────────────────▼────────────────────────▼───────────────────┐
-│                   Backend API Layer                          │
-│                    (FastAPI)                                 │
-│                                                              │
+│                   Backend API Layer                         │
+│                    (FastAPI)                                │
+│                                                             │
 │  ┌───────────────────────────────────────────────────┐      │
 │  │        Assessment Workflow (LangGraph)            │      │
 │  │                                                   │      │
-│  │  Patient Retrieval ──→ Guideline Search          │      │
+│  │  Patient Retrieval ──→ Guideline Search           │      │
 │  │        ↓                      ↓                   │      │
 │  │   Patient DB            Vector Store              │      │
 │  │  (JSON-based)          (ChromaDB)                 │      │
@@ -47,16 +47,16 @@ The application follows a modular, microservices-inspired design with clear sepa
 │  │                              ↓                    │      │
 │  │                    Output Formatting              │      │
 │  └───────────────────────────────────────────────────┘      │
-│                                                              │
+│                                                             │
 │  ┌───────────────────────────────────────────────────┐      │
 │  │         Chat Workflow (LangGraph)                 │      │
 │  │                                                   │      │
-│  │  Query Processing ──→ Search ──→ Response Gen    │      │
+│  │  Query Processing ──→ Search ──→ Response Gen     │      │
 │  │                   (Shared Vector Store)           │      │
 │  └───────────────────────────────────────────────────┘      │
-│                                                              │
-│           AI Backend: Vertex AI / Google AI Studio           │
-└──────────────────────────────────────────────────────────────┘
+│                                                             │
+│           AI Backend: Vertex AI / Google AI Studio          │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
