@@ -56,55 +56,89 @@ LangGraph provides a structured, stateful graph-based orchestration framework th
 3. **Hard constraints** — Citation grounding, age precision, terminology definitions
 4. **Structured output** — JSON schema enforced for deterministic parsing
 
-### Critical Rules
+### Critical Rules Embedded
 
 - Only cite provided guideline sections (never fabricate recommendation numbers)
 - Age threshold precision (44 ≠ "45 and over")
 - Smoking history changes the symptom threshold for lung/mesothelioma
 - Consider ALL possible cancer types per symptom
+- "Unexplained" and "persistent" have specific clinical definitions
 
 ### Configuration: Temperature = 0.1
 
-Clinical reasoning requires determinism. Low temperature minimizes output variability.
+Clinical reasoning requires determinism. Low temperature minimizes output variability while allowing structured reasoning.
 
 ---
 
-## Part 2: Chat System Prompt
+## Part 2: Chat System Prompt — Clinical Consultation Format
 
-### Grounding Strategy (3-Layer Defense)
+### Design Philosophy
 
-1. **Retrieval grounding** — "Only make statements supported by the guideline text provided"
-2. **Citation enforcement** — `[NG12 Rec X.X.X, p.XX]` format required
-3. **Failure behavior** — Explicit refusal phrase when evidence is insufficient
+The chat prompt is designed to produce **structured clinical consultation responses** that mirror how a senior clinician would advise a colleague. Every response follows a consistent framework with clearly labeled sections.
 
-### Multi-turn Handling
+### Response Framework (7 Sections)
 
-- Last 10 messages included as conversation history
-- Follow-up queries augmented with previous exchange context before vector search
-- Enables coherent follow-ups like "What about for younger patients?"
+| Section | Purpose | When to Include |
+|---------|---------|-----------------|
+| 🔑 **Key Answer** | Direct 2-3 sentence answer for busy clinicians | ALWAYS |
+| 📋 **NG12 Criteria Breakdown** | Specific recommendations with citations | ALWAYS |
+| 👥 **Age-Stratified Guidance** | How thresholds vary by age group | When age-dependent |
+| ⚠️ **Risk Modifiers & Red Flags** | Smoking, symptom combos, duration | When applicable |
+| 🔄 **Related Pathways** | Cross-references to other cancer types | When multiple apply |
+| 🛡️ **Safety Netting** | Sub-threshold patient management | When relevant |
+| 💡 **Clinical Pearl** | Practical insight from senior perspective | ALWAYS |
+
+### Prompt Engineering Techniques Used
+
+1. **Internal Chain-of-Thought** — The prompt includes a "thinking process" section that guides the model through structured reasoning before generating the response, without exposing it to the user.
+
+2. **Few-Shot via Embedded Example** — A complete high-quality example answer is embedded directly in the system prompt, demonstrating the expected depth, structure, and citation format.
+
+3. **Grounding Defense-in-Depth** — Five non-negotiable grounding rules prevent hallucination:
+   - Every claim must be supported by retrieved context
+   - Specific citation format enforced: `[NG12 Rec X.X.X, p.XX]`
+   - Transparent insufficient-evidence handling
+   - No fabrication of any clinical data
+   - No hedging language ("I think", "probably") on guideline content
+
+4. **Minimum Response Length** — 200-word minimum prevents thin, unhelpful answers while ensuring clinical thoroughness.
+
+5. **Terminology Reference Table** — Precise NG12 terminology definitions embedded in the prompt ensure consistent use of clinical language (e.g., "consider" vs "offer/refer" distinction).
+
+### Guardrails
+
+| Guardrail | Implementation |
+|-----------|---------------|
+| No hallucinated recommendations | "Every factual claim MUST be supported by retrieved text" |
+| No invented thresholds | "NEVER fabricate recommendation numbers, age thresholds, or clinical criteria" |
+| Insufficient evidence handling | Explicit partial-answer + transparency template |
+| Multi-turn coherence | History-augmented search + conversation context |
+| Citation quality | Chunk metadata (page, chunk_id) attached to every response |
+| Clinical precision | "NEVER say 'I think' or 'probably' about guideline content" |
 
 ---
 
 ## RAG Pipeline Design
 
-### Chunking: 1000 chars / 200 overlap
-- NG12 recommendations are 100-300 chars; 1000-char chunks capture 2-4 related recommendations
-- 200-char overlap prevents recommendations at chunk boundaries from splitting
+### Chunking Strategy: 1000 chars / 200 overlap
+- NG12 recommendations are typically 100-300 characters
+- 1000-char chunks capture 2-4 related recommendations with surrounding context
+- 200-char overlap prevents recommendations at chunk boundaries from being split
 
 ### Search Strategy
-- **Assessment:** Multiple queries per patient (symptom + age + gender + smoking context)
-- **Chat:** Single query, augmented with conversation history for follow-ups
-- Results deduplicated by chunk_id, sorted by relevance score
+- **Assessment:** Multiple queries per patient — one per symptom, augmented with age, gender, and smoking context
+- **Chat:** Single query augmented with conversation history for coherent follow-ups
+- Results deduplicated by chunk_id, sorted by relevance score, top-k returned
 
-### Metadata
-Each chunk retains: page number, chunk_id (`ng12_PPPP_CCCC`), source filename — enabling precise citations.
+### Metadata Preservation
+Each chunk retains: page number, chunk_id (`ng12_PPPP_CCCC`), source filename — enabling precise citation back to the original guideline document.
 
 ---
 
 ## Vertex AI / Google AI Compatibility
 
-The system supports both backends via configuration:
-- `USE_VERTEX_AI=false` → Google AI Studio (API key, default)
-- `USE_VERTEX_AI=true` → Google Vertex AI (GCP project + ADC)
+The system supports both backends via a single environment variable:
+- `USE_VERTEX_AI=false` → Google AI Studio (API key authentication, default)
+- `USE_VERTEX_AI=true` → Google Vertex AI (GCP project + Application Default Credentials)
 
-The architecture is **SDK-agnostic**: swapping backends requires only changing environment variables.
+The architecture is **SDK-agnostic**: the LangGraph pipeline, prompts, vector store, and API layer are identical regardless of backend. Only the model initialization changes.
