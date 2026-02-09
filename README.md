@@ -10,30 +10,30 @@ An AI-powered clinical decision support system that assists healthcare professio
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│              React + Vite + Tailwind CSS                     │
-│         [Risk Assessment Tab]   [Chat Tab]                   │
+│              React + Vite + Tailwind CSS                    │
+│         [Risk Assessment Tab]   [Chat Tab]                  │
 └──────────┬──────────────────────────┬───────────────────────┘
            │                          │
       POST /assess               POST /chat
            │                          │
 ┌──────────▼──────────────────────────▼───────────────────────┐
-│                     FastAPI Backend                           │
-│                                                              │
+│                     FastAPI Backend                         │
+│                                                             │
 │   ┌─── LangGraph Assessment Graph ───────────────────┐      │
-│   │  retrieve_patient → search_guidelines → reason    │      │
-│   │        │ (error)          ↓              ↓        │      │
-│   │        └──────→    format_output ← ──────┘        │      │
+│   │  retrieve_patient → search_guidelines → reason   │      │
+│   │        │ (error)          ↓              ↓       │      │
+│   │        └──────→    format_output ← ──────┘       │      │
 │   └──────────────────────────────────────────────────┘      │
-│                                                              │
+│                                                             │
 │   ┌─── LangGraph Chat Graph ────────────────────────┐       │
-│   │  build_query → search → generate                 │       │
-│   │             (shared vector store)                 │       │
-│   └──────────────────────────────────────────────────┘      │
-│                                                              │
-│   [Patient DB]  [ChromaDB Vector Store]  [Gemini 2.5 Flash]  │
-│                                                              │
-│        Configurable: Google AI Studio ←→ Vertex AI           │
-└──────────────────────────────────────────────────────────────┘
+│   │  build_query → search → generate                │       │
+│   │             (shared vector store)               │       │
+│   └─────────────────────────────────────────────────┘       │
+│                                                             │
+│   [Patient DB]  [ChromaDB Vector Store]  [Gemini 2.5 Flash] │
+│                                                             │
+│        Configurable: Google AI Studio ←→ Vertex AI          │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
