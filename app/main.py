@@ -1,7 +1,4 @@
-"""
-NG12 Cancer Risk Assessor — FastAPI Application
-Combines Part 1 (Risk Assessment) and Part 2 (Chat) into a single service.
-"""
+"""FastAPI entrypoint for the NG12 assessor service."""
 
 import logging
 from contextlib import asynccontextmanager
@@ -28,19 +25,17 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# ---------------------------------------------------------------------------
-# Startup / Shutdown
-# ---------------------------------------------------------------------------
+# Startup / shutdown
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Load data and initialize vector store on startup."""
+    """Warm up local data and vector store on startup."""
     logger.info("Starting NG12 Cancer Risk Assessor...")
 
-    # Load patient data
+    # Load patient records first so endpoints are ready immediately.
     load_patients()
     logger.info("Patient data loaded.")
 
-    # Initialize vector store (builds from PDF if not already done)
+    # Open vector store, or build it if it is missing.
     try:
         store = get_vector_store()
         count = store._collection.count()
@@ -51,14 +46,12 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Vector store initialization issue: {e}")
 
-    yield  # App is running
+    yield  # Application is now serving requests.
 
     logger.info("Shutting down NG12 Cancer Risk Assessor.")
 
 
-# ---------------------------------------------------------------------------
-# App Setup
-# ---------------------------------------------------------------------------
+# App setup
 app = FastAPI(
     title="NG12 Cancer Risk Assessor",
     description=(
@@ -69,50 +62,39 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Serve frontend static files
+# Serve static assets if the frontend build exists.
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 if FRONTEND_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
 
 
-# ---------------------------------------------------------------------------
-# Root / Frontend
-# ---------------------------------------------------------------------------
+# Root / frontend
 @app.get("/", include_in_schema=False)
 async def serve_frontend():
-    """Serve the main HTML frontend."""
+    """Return the frontend entry page when available."""
     index_path = FRONTEND_DIR / "index.html"
     if index_path.exists():
         return FileResponse(str(index_path))
     return {"message": "NG12 Cancer Risk Assessor API. Visit /docs for API documentation."}
 
 
-# ---------------------------------------------------------------------------
-# Health Check
-# ---------------------------------------------------------------------------
+# Health check
 @app.get("/health")
 async def health_check():
-    """Service health check."""
+    """Simple liveness endpoint."""
     return {"status": "healthy", "service": "ng12-cancer-risk-assessor"}
 
 
-# ---------------------------------------------------------------------------
-# Part 1: Risk Assessment Endpoints
-# ---------------------------------------------------------------------------
+# Risk assessment endpoints
 @app.get("/patients")
 async def list_patients():
-    """List all available patients (for the frontend dropdown)."""
+    """List patients for the UI dropdown."""
     return list_patients_summary()
 
 
 @app.post("/assess")
 async def assess(request: AssessmentRequest):
-    """
-    Assess a patient against NG12 guidelines.
-
-    Accepts a Patient ID, retrieves their records, consults the NG12 guideline
-    via RAG, and returns a structured risk assessment with citations.
-    """
+    """Run NG12 assessment for a patient id."""
     try:
         result = assess_patient(request.patient_id)
     except Exception as e:
@@ -125,17 +107,10 @@ async def assess(request: AssessmentRequest):
     return result
 
 
-# ---------------------------------------------------------------------------
-# Part 2: Chat Endpoints
-# ---------------------------------------------------------------------------
+# Chat endpoints
 @app.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest):
-    """
-    Conversational Q&A over NG12 guidelines.
-
-    Supports multi-turn conversations with session-based memory.
-    Answers are grounded in retrieved guideline text with citations.
-    """
+    """Answer NG12 questions with session-aware chat."""
     try:
         result = chat(
             session_id=request.session_id,
@@ -151,14 +126,14 @@ async def chat_endpoint(request: ChatRequest):
 
 @app.get("/chat/{session_id}/history", response_model=ChatHistoryResponse)
 async def chat_history(session_id: str):
-    """Retrieve conversation history for a session."""
+    """Get stored conversation history for one session."""
     history = get_chat_history(session_id)
     return ChatHistoryResponse(session_id=session_id, messages=history)
 
 
 @app.delete("/chat/{session_id}")
 async def delete_chat(session_id: str):
-    """Clear conversation history for a session."""
+    """Delete stored conversation history for one session."""
     deleted = clear_chat_history(session_id)
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found.")

@@ -1,8 +1,4 @@
-"""
-Patient Data Service — simulates a database (BigQuery) retrieval layer.
-Loads patient records from patients.json and exposes a lookup function
-that the Gemini agent can call as a tool.
-"""
+"""Small patient data layer backed by `patients.json`."""
 
 import json
 from typing import Optional
@@ -10,14 +6,12 @@ from pathlib import Path
 from app.config import PATIENTS_FILE
 
 
-# ---------------------------------------------------------------------------
-# In-memory patient store (loaded once at startup)
-# ---------------------------------------------------------------------------
+# In-memory cache loaded on first use.
 _patients: dict = {}
 
 
 def load_patients(filepath: Optional[Path] = None) -> None:
-    """Load patient records from JSON into the in-memory store."""
+    """Load records from disk into the in-memory cache."""
     global _patients
     path = filepath or PATIENTS_FILE
     with open(path, "r") as f:
@@ -26,25 +20,21 @@ def load_patients(filepath: Optional[Path] = None) -> None:
 
 
 def get_patient(patient_id: str) -> Optional[dict]:
-    """
-    Retrieve a single patient record by ID.
-    Returns None if the patient is not found.
-    This is the function exposed as an agent tool.
-    """
+    """Return one patient by ID, or `None` if not found."""
     if not _patients:
         load_patients()
     return _patients.get(patient_id)
 
 
 def list_patient_ids() -> list[str]:
-    """Return all available patient IDs (for the UI dropdown)."""
+    """Return sorted patient IDs for the UI selector."""
     if not _patients:
         load_patients()
     return sorted(_patients.keys())
 
 
 def list_patients_summary() -> list[dict]:
-    """Return a summary list of all patients (id + name) for the frontend."""
+    """Return lightweight patient records (id + name) for the frontend."""
     if not _patients:
         load_patients()
     return [

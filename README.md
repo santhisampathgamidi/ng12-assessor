@@ -1,218 +1,377 @@
-# 🏥 NG12 Cancer Risk Assessor
+# NG12 Cancer Risk Assessment System
 
-A Clinical Decision Support Agent powered by **Google Gemini 1.5** and **NICE NG12 Guidelines** for suspected cancer recognition and referral.
+> An intelligent clinical decision support tool leveraging AI-powered orchestration to assist healthcare professionals in cancer risk assessment and referral decisions based on NICE NG12 guidelines.
 
-## Architecture
+---
+
+## 📋 Overview
+
+This application provides healthcare professionals with an AI-assisted decision support system for suspected cancer recognition and referral. Built with modern technologies and clinical best practices, it combines LangGraph orchestration, Google Gemini AI, and NICE NG12 guidelines to deliver accurate, evidence-based risk assessments.
+
+### Core Capabilities
+
+- **Intelligent Risk Assessment**: Automated patient evaluation using clinical guidelines
+- **Interactive Chat Interface**: Natural language queries about NG12 guidelines
+- **Evidence-Based Recommendations**: Responses grounded in official NICE documentation
+- **Dual Deployment Options**: Support for both Google AI Studio and Vertex AI
+
+---
+
+## 🏗️ System Architecture
+
+The application follows a modular, microservices-inspired design with clear separation of concerns:
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                    Frontend (HTML/JS)                │
-│          [Risk Assessment Tab] [Chat Tab]            │
-└─────────────┬───────────────────────┬───────────────┘
-              │                       │
-         POST /assess            POST /chat
-              │                       │
-┌─────────────▼───────────────────────▼───────────────┐
-│                  FastAPI Service                      │
-│                                                       │
-│  ┌──────────────┐  ┌──────────────┐  ┌────────────┐ │
-│  │ Patient      │  │ Vector Store │  │ Gemini     │ │
-│  │ Service      │  │ (ChromaDB)   │  │ Agent      │ │
-│  │              │  │              │  │            │ │
-│  │ patients.json│  │ NG12 PDF     │  │ Reasoning  │ │
-│  │ → lookup     │  │ → embeddings │  │ + Citations│ │
-│  └──────────────┘  └──────────────┘  └────────────┘ │
-└─────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                     Frontend Layer                           │
+│          React + Vite + Tailwind CSS                         │
+│     [Risk Assessment Interface] | [Guideline Chat]           │
+└────────────────┬────────────────────────┬───────────────────┘
+                 │                        │
+            POST /assess             POST /chat
+                 │                        │
+┌────────────────▼────────────────────────▼───────────────────┐
+│                   Backend API Layer                          │
+│                    (FastAPI)                                 │
+│                                                              │
+│  ┌───────────────────────────────────────────────────┐      │
+│  │        Assessment Workflow (LangGraph)            │      │
+│  │                                                   │      │
+│  │  Patient Retrieval ──→ Guideline Search          │      │
+│  │        ↓                      ↓                   │      │
+│  │   Patient DB            Vector Store              │      │
+│  │  (JSON-based)          (ChromaDB)                 │      │
+│  │                              ↓                    │      │
+│  │                    Clinical Reasoning             │      │
+│  │                      (Gemini AI)                  │      │
+│  │                              ↓                    │      │
+│  │                    Output Formatting              │      │
+│  └───────────────────────────────────────────────────┘      │
+│                                                              │
+│  ┌───────────────────────────────────────────────────┐      │
+│  │         Chat Workflow (LangGraph)                 │      │
+│  │                                                   │      │
+│  │  Query Processing ──→ Search ──→ Response Gen    │      │
+│  │                   (Shared Vector Store)           │      │
+│  └───────────────────────────────────────────────────┘      │
+│                                                              │
+│           AI Backend: Vertex AI / Google AI Studio           │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-## Features
+---
 
-### Part 1: Risk Assessment
-- Accepts a Patient ID, retrieves structured records
-- RAG retrieval of relevant NG12 guideline sections from ChromaDB
-- Gemini 1.5 synthesizes a risk assessment with:
-  - Risk level (URGENT_REFERRAL / URGENT_INVESTIGATION / VERY_URGENT / SAFETY_NETTING / LOW_RISK)
-  - Recommended clinical action
-  - Suspected cancer types
-  - Step-by-step reasoning
-  - Specific NG12 recommendation citations
+## ✨ Key Features
 
-### Part 2: Conversational Chat
-- Multi-turn Q&A over the same NG12 vector store
-- Session-based conversation memory
-- Grounded answers with inline citations `[NG12 Rec X.X.X, p.XX]`
-- Graceful handling of insufficient evidence
-- Citation sources displayed per message
+### LangGraph-Based Orchestration
+The system uses explicit state management through LangGraph, making each step of the clinical reasoning process:
+- **Transparent**: Clear visibility into decision-making logic
+- **Debuggable**: Easy to trace and troubleshoot
+- **Extensible**: Simple to add new nodes (e.g., human review steps)
 
-## Quick Start
+### Flexible AI Deployment
+Switch seamlessly between deployment modes via environment configuration:
+- **Google AI Studio**: Rapid prototyping with free tier
+- **Vertex AI**: Enterprise-grade deployment with enhanced security and compliance
 
-### Prerequisites
-- Python 3.11+
-- A [Google AI API key](https://aistudio.google.com/apikey) (free tier works)
+### Modern Frontend Experience
+- Responsive design with Tailwind CSS
+- Real-time typewriter effects for engaging user experience
+- Intuitive tab-based navigation between assessment and chat modes
 
-### 1. Clone and Setup
+### Clinical-Grade Data Processing
+- Vector embeddings of complete NICE NG12 guideline
+- Semantic search for relevant clinical recommendations
+- Context-aware response generation
+
+---
+
+## 🚀 Getting Started
+
+### System Requirements
+
+Ensure your development environment meets these prerequisites:
+
+- **Python**: 3.11 or higher
+- **Node.js**: 18.x or higher
+- **API Access**: Google AI API key ([obtain here](https://aistudio.google.com/apikey))
+
+### Installation Guide
+
+#### Step 1: Backend Configuration
 
 ```bash
-git clone <your-repo-url>
+# Navigate to project directory
 cd ng12-assessor
 
-# Create virtual environment
+# Create and activate virtual environment
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install dependencies
+# Install Python dependencies
 pip install -r requirements.txt
-```
 
-### 2. Configure
-
-```bash
+# Set up environment variables
 cp .env.example .env
-# Edit .env and add your GOOGLE_API_KEY
+# Edit .env file and add your GOOGLE_API_KEY
+
+# Download NICE NG12 PDF
+# Source: https://www.nice.org.uk/guidance/ng12/resources/suspected-cancer-recognition-and-referral-pdf-1837268071621
+# Place in: data/ng12.pdf
+
+# Initialize vector database
+python -m scripts.ingest_pdf --force
+
+# Launch backend server
+python -m uvicorn app.main:app --reload --port 8000
 ```
 
-### 3. Download the NG12 PDF
+Backend will be available at: `http://localhost:8000`
 
-Download the guideline PDF and place it in the `data/` directory:
+#### Step 2: Frontend Setup
 
 ```bash
-# The PDF should be at: data/suspected-cancer-recognition-and-referral-pdf-1837268071621.pdf
-# Download from: https://www.nice.org.uk/guidance/ng12/resources/suspected-cancer-recognition-and-referral-pdf-1837268071621
+# Navigate to frontend directory
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
 ```
 
-### 4. Build the Vector Store
+Access the application at: `http://localhost:5173`
+
+### Advanced Configuration: Vertex AI
+
+For production deployments with enhanced enterprise features:
 
 ```bash
-python -m scripts.ingest_pdf --stats
+# Update .env configuration
+USE_VERTEX_AI=true
+GCP_PROJECT_ID=your-google-cloud-project
+GCP_LOCATION=us-central1
+
+# Authenticate with Google Cloud
+gcloud auth application-default login
 ```
 
-This parses the PDF, creates embeddings via Google AI, and stores them in ChromaDB.
+---
 
-### 5. Run the Service
+## 🐳 Docker Deployment
 
-```bash
-uvicorn app.main:app --reload --port 8000
-```
-
-Visit: **http://localhost:8000**
-
-## Running with Docker
+### Build and Run
 
 ```bash
-# Build
+# Build the Docker image
 docker build -t ng12-assessor .
 
-# Run (pass your API key)
+# Run container
 docker run -p 8000:8000 \
-  -e GOOGLE_API_KEY=your-key-here \
+  -e GOOGLE_API_KEY=your_api_key_here \
   -v $(pwd)/data:/app/data \
   -v $(pwd)/chroma_db:/app/chroma_db \
   ng12-assessor
 
-# First time: ingest the PDF
-docker exec <container-id> python -m scripts.ingest_pdf
+# First-time setup: Initialize vector store
+docker exec <container_id> python -m scripts.ingest_pdf
 ```
 
-Or with docker-compose:
+### Using Docker Compose
 
 ```bash
-# Set your API key in .env
-echo "GOOGLE_API_KEY=your-key-here" > .env
+# Start all services
+docker-compose up -d
 
-docker-compose up --build
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
 ```
 
-## API Endpoints
+---
 
-### Risk Assessment (Part 1)
+## 📚 API Reference
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/patients` | List all available patients |
-| POST | `/assess` | Assess a patient against NG12 |
-| GET | `/health` | Service health check |
+| HTTP Method | Endpoint | Purpose | Request Body |
+|-------------|----------|---------|--------------|
+| `GET` | `/patients` | Retrieve patient list | None |
+| `POST` | `/assess` | Perform risk assessment | `{"patient_id": "string"}` |
+| `POST` | `/chat` | Query guidelines | `{"message": "string", "session_id": "string"}` |
+| `GET` | `/chat/{session_id}/history` | Retrieve chat history | None |
+| `DELETE` | `/chat/{session_id}` | Clear conversation | None |
 
-**POST /assess**
-```json
-{ "patient_id": "PT-101" }
+### Example Usage
+
+```bash
+# Assess a patient
+curl -X POST http://localhost:8000/assess \
+  -H "Content-Type: application/json" \
+  -d '{"patient_id": "P001"}'
+
+# Chat with guidelines
+curl -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "What are the criteria for lung cancer referral?", "session_id": "session123"}'
 ```
 
-### Chat (Part 2)
+---
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/chat` | Send a chat message |
-| GET | `/chat/{session_id}/history` | Get conversation history |
-| DELETE | `/chat/{session_id}` | Clear a session |
-
-**POST /chat**
-```json
-{
-  "session_id": "my-session",
-  "message": "What symptoms trigger an urgent referral for lung cancer?",
-  "top_k": 5
-}
-```
-
-## Project Structure
+## 📁 Project Structure
 
 ```
 ng12-assessor/
-├── app/
-│   ├── __init__.py
-│   ├── main.py            # FastAPI application + endpoints
-│   ├── config.py           # Environment configuration
-│   ├── models.py           # Pydantic request/response schemas
-│   ├── agent.py            # Gemini agent (assessment + chat)
-│   ├── prompts.py          # System prompts for both agents
-│   ├── patient_service.py  # Patient data retrieval (simulated DB)
-│   └── vector_store.py     # PDF ingestion + ChromaDB + search
-├── scripts/
-│   └── ingest_pdf.py       # Standalone PDF ingestion script
-├── frontend/
-│   └── index.html          # Minimal UI (Assessment + Chat tabs)
-├── data/
-│   ├── patients.json       # Simulated patient database
-│   └── *.pdf               # NG12 guideline PDF (you download this)
-├── Dockerfile
-├── docker-compose.yml
-├── requirements.txt
-├── PROMPTS.md              # Prompt engineering documentation
-├── CHAT_PROMPTS.md         # Chat-specific grounding strategy
-├── .env.example
-├── .gitignore
-└── README.md
+│
+├── app/                          # Backend application code
+│   ├── main.py                   # FastAPI application & route handlers
+│   ├── agent.py                  # LangGraph workflow definitions
+│   ├── config.py                 # Configuration management
+│   ├── models.py                 # Data models (Pydantic schemas)
+│   ├── prompts.py                # LLM prompt templates
+│   ├── patient_service.py        # Patient data access layer
+│   └── vector_store.py           # Vector database operations
+│
+├── frontend/                     # React application
+│   ├── src/
+│   │   ├── App.jsx               # Root component with routing
+│   │   ├── components/
+│   │   │   ├── AssessmentTab.jsx # Risk assessment interface
+│   │   │   └── ChatTab.jsx       # Guideline chat interface
+│   │   ├── main.jsx              # Application entry point
+│   │   └── index.css             # Global styles
+│   ├── package.json              # Node dependencies
+│   ├── vite.config.js            # Vite bundler config
+│   └── tailwind.config.js        # Tailwind CSS config
+│
+├── scripts/                      # Utility scripts
+│   └── ingest_pdf.py             # PDF processing & embedding
+│
+├── data/                         # Data storage
+│   ├── patients.json             # Patient records (simulated)
+│   └── ng12.pdf                  # NICE guideline document
+│
+├── chroma_db/                    # Vector database storage
+│
+├── Dockerfile                    # Multi-stage container build
+├── docker-compose.yml            # Service orchestration
+├── requirements.txt              # Python dependencies
+├── .env.example                  # Environment template
+├── PROMPTS.md                    # Prompt engineering documentation
+├── CHAT_PROMPTS.md               # Chat-specific prompts
+└── README.md                     # This file
 ```
 
-## Prompt Engineering
+---
 
-See [PROMPTS.md](PROMPTS.md) for the risk assessment prompt strategy and [CHAT_PROMPTS.md](CHAT_PROMPTS.md) for the chat grounding approach.
+## 🎯 Design Philosophy
 
-## Test Patients
+### Orchestration-First Architecture
+LangGraph provides explicit state machines for clinical workflows. Each node represents a discrete step in the reasoning process, making the system:
+- **Auditable**: Full visibility into decision paths
+- **Testable**: Individual components can be validated independently
+- **Maintainable**: Clear separation makes updates straightforward
 
-| ID | Name | Key Features | Expected Outcome |
-|----|------|-------------|-----------------|
-| PT-101 | John Doe | 55M, smoker, haemoptysis | **URGENT_REFERRAL** — lung cancer pathway |
-| PT-102 | Jane Smith | 25F, cough 5 days | **LOW_RISK** — young, short duration, non-smoker |
-| PT-103 | Robert Brown | 45M, ex-smoker, cough + SOB 28d | **URGENT_INVESTIGATION** — chest X-ray |
-| PT-104 | Sarah Connor | 35F, dysphagia 21d | **URGENT_REFERRAL** — oesophageal/stomach |
-| PT-105 | Michael Chang | 65M, iron-deficiency anaemia | **URGENT_INVESTIGATION** — FIT for colorectal |
-| PT-106 | Emily Blunt | 18F, fatigue only | **SAFETY_NETTING** — low risk, monitor |
-| PT-107 | David Bowie | 48M, smoker, hoarseness 45d | **URGENT_REFERRAL** — laryngeal cancer |
-| PT-108 | Alice Wonderland | 32F, breast lump | **URGENT_REFERRAL** — breast cancer pathway |
-| PT-109 | Tom Cruise | 45M, dyspepsia 7d | **LOW_RISK** — under 55, short duration |
-| PT-110 | Bruce Wayne | 60M, visible haematuria | **URGENT_REFERRAL** — bladder/renal cancer |
+### Deployment Flexibility
+The abstraction layer between Google AI Studio and Vertex AI allows teams to:
+- Prototype rapidly with free-tier APIs
+- Graduate to enterprise infrastructure seamlessly
+- Maintain consistent behavior across environments
 
-## Technology Stack
+### Session Management
+Current implementation uses in-memory storage for chat sessions. This design choice prioritizes:
+- Development simplicity
+- Low operational overhead
+- Clear upgrade path to persistent storage
 
-- **LLM**: Google Gemini 1.5 (via `google-generativeai`)
-- **Embeddings**: Google Generative AI Embeddings (`models/embedding-001`)
-- **Vector DB**: ChromaDB (local persistent storage)
-- **API Framework**: FastAPI
-- **PDF Parsing**: pypdf
-- **Text Splitting**: LangChain RecursiveCharacterTextSplitter
-- **Containerization**: Docker
+### Future Enhancements
 
-## License
+Given additional development time, priority improvements would include:
 
-This project is for assessment purposes. The NICE NG12 guideline content is © NICE 2026.
+1. **Streaming Responses**: Implement Server-Sent Events for real-time token streaming
+2. **Hybrid Retrieval**: Combine vector search with BM25 for improved recall
+3. **Automated Testing**: Evaluation harness covering all test patient scenarios
+4. **Persistent Storage**: Redis integration for production-grade session management
+5. **Workflow Observability**: LangGraph streaming callbacks for step-by-step UI updates
+6. **Multi-Modal Support**: Integration of imaging data for comprehensive assessments
+
+---
+
+## 🛠️ Technology Stack
+
+| Layer | Technology | Purpose |
+|-------|-----------|---------|
+| **Orchestration** | LangGraph (StateGraph) | Workflow management |
+| **LLM** | Google Gemini 2.5 Flash | Clinical reasoning |
+| **Embeddings** | Gemini Embedding 001 / text-embedding-004 | Semantic search |
+| **Vector DB** | ChromaDB | Guideline storage & retrieval |
+| **Backend** | FastAPI | API server |
+| **Frontend** | React + Vite | User interface |
+| **Styling** | Tailwind CSS | UI components |
+| **Deployment** | Docker (multi-stage) | Containerization |
+
+---
+
+## 📝 Development Notes
+
+### Environment Variables
+
+Required configuration in `.env`:
+
+```bash
+# Required
+GOOGLE_API_KEY=your_google_ai_api_key
+
+# Optional (for Vertex AI)
+USE_VERTEX_AI=false
+GCP_PROJECT_ID=your-project-id
+GCP_LOCATION=us-central1
+
+# Application
+API_PORT=8000
+FRONTEND_URL=http://localhost:5173
+```
+
+### Testing the System
+
+```bash
+# Run backend tests
+pytest
+
+# Test specific module
+pytest tests/test_agent.py -v
+
+# Frontend tests
+cd frontend
+npm test
+```
+
+---
+
+## 📄 License
+
+This project is intended for educational and research purposes. Clinical use requires appropriate validation and regulatory compliance.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please ensure:
+- Code follows existing style conventions
+- Tests are included for new features
+- Documentation is updated accordingly
+- Commit messages are descriptive
+
+---
+
+## 📞 Support
+
+For issues, questions, or contributions:
+- Open an issue on the repository
+- Review existing documentation in `/docs`
+- Check the troubleshooting guide
+
+---
+
+**Built with modern AI orchestration for better clinical decision support**

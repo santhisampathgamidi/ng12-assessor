@@ -1,7 +1,4 @@
-"""
-PDF Ingestion & Vector Store — parses the NG12 PDF, creates embeddings,
-and stores them in ChromaDB for RAG retrieval.
-"""
+"""Build and query the NG12 Chroma vector store."""
 
 import os
 import logging
@@ -25,14 +22,12 @@ from app.config import (
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Module-level singleton for the vector store
-# ---------------------------------------------------------------------------
+# Reuse one vector store instance per process.
 _vector_store: Optional[Chroma] = None
 
 
 def _get_embeddings() -> GoogleGenerativeAIEmbeddings:
-    """Create the Google Generative AI embeddings model."""
+    """Create the embeddings client."""
     return GoogleGenerativeAIEmbeddings(
         model=EMBEDDING_MODEL,
         google_api_key=GOOGLE_API_KEY,
@@ -40,12 +35,7 @@ def _get_embeddings() -> GoogleGenerativeAIEmbeddings:
 
 
 def parse_pdf(pdf_path: str | Path) -> list[dict]:
-    """
-    Parse a PDF and return a list of dicts with keys:
-      - text: the page text
-      - page: 1-based page number
-      - source: filename
-    """
+    """Extract non-empty page text from a PDF."""
     pdf_path = Path(pdf_path)
     reader = PdfReader(str(pdf_path))
     pages = []
@@ -62,10 +52,7 @@ def parse_pdf(pdf_path: str | Path) -> list[dict]:
 
 
 def chunk_pages(pages: list[dict]) -> list[dict]:
-    """
-    Split page texts into smaller overlapping chunks.
-    Each chunk retains its source page number and a unique chunk_id.
-    """
+    """Split pages into overlapping chunks and attach metadata."""
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=CHUNK_SIZE,
         chunk_overlap=CHUNK_OVERLAP,
@@ -91,16 +78,13 @@ def chunk_pages(pages: list[dict]) -> list[dict]:
 
 
 def build_vector_store(pdf_path: Optional[str | Path] = None, force: bool = False) -> Chroma:
-    """
-    Build (or load) the ChromaDB vector store from the NG12 PDF.
-    If the store already exists on disk and force=False, just load it.
-    """
+    """Build or load the Chroma store for the NG12 PDF."""
     global _vector_store
 
     persist_dir = CHROMA_PERSIST_DIR
     embeddings = _get_embeddings()
 
-    # Check if store already exists
+    # Load from disk when available unless we are forcing a rebuild.
     if not force and os.path.exists(persist_dir) and os.listdir(persist_dir):
         logger.info(f"Loading existing vector store from {persist_dir}")
         _vector_store = Chroma(
@@ -108,14 +92,14 @@ def build_vector_store(pdf_path: Optional[str | Path] = None, force: bool = Fals
             persist_directory=persist_dir,
             embedding_function=embeddings,
         )
-        # Verify it has documents
+        # Guard against a created-but-empty collection.
         count = _vector_store._collection.count()
         if count > 0:
             logger.info(f"Vector store loaded with {count} documents")
             return _vector_store
         logger.warning("Vector store was empty, rebuilding...")
 
-    # Find the PDF
+    # Pick the PDF path if one was not provided.
     if pdf_path is None:
         pdf_candidates = list(PDF_DIR.glob("*.pdf"))
         if not pdf_candidates:
@@ -126,23 +110,23 @@ def build_vector_store(pdf_path: Optional[str | Path] = None, force: bool = Fals
 
     logger.info(f"Building vector store from {pdf_path}...")
 
-    # Parse → Chunk → Embed → Store (in batches to respect rate limits)
+    # Parse, chunk, embed, then store in rate-limit-friendly batches.
     pages = parse_pdf(pdf_path)
     chunks = chunk_pages(pages)
 
     texts = [c["text"] for c in chunks]
     metadatas = [c["metadata"] for c in chunks]
 
-    # Create empty vector store first
+    # Create/open the collection before inserting chunks.
     _vector_store = Chroma(
         collection_name=COLLECTION_NAME,
         persist_directory=persist_dir,
         embedding_function=embeddings,
     )
 
-    # Add in small batches with delays to avoid rate limiting
+    # Insert slowly enough to stay under the embedding API limits.
     import time
-    BATCH_SIZE = 20  # Small batches to stay under 100 requests/min
+    BATCH_SIZE = 20  # Conservative batch size for free-tier limits.
     for i in range(0, len(texts), BATCH_SIZE):
         batch_texts = texts[i:i + BATCH_SIZE]
         batch_meta = metadatas[i:i + BATCH_SIZE]
@@ -160,7 +144,7 @@ def build_vector_store(pdf_path: Optional[str | Path] = None, force: bool = Fals
 
 
 def get_vector_store() -> Chroma:
-    """Get the singleton vector store instance (loads/builds if needed)."""
+    """Return the process-level store, building it if needed."""
     global _vector_store
     if _vector_store is None:
         _vector_store = build_vector_store()
@@ -168,10 +152,7 @@ def get_vector_store() -> Chroma:
 
 
 def search_guidelines(query: str, top_k: int = 5) -> list[dict]:
-    """
-    Search the NG12 vector store for chunks relevant to the query.
-    Returns a list of dicts with keys: text, source, page, chunk_id, score.
-    """
+    """Return top matching guideline chunks for a query."""
     store = get_vector_store()
     results = store.similarity_search_with_relevance_scores(query, k=top_k)
 

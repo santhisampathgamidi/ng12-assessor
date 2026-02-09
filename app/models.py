@@ -1,12 +1,10 @@
-"""Pydantic models for API request/response schemas."""
+"""Pydantic schemas used by the API endpoints."""
 
 from typing import Optional
 from pydantic import BaseModel, Field
 
 
-# ---------------------------------------------------------------------------
-# Part 1: Risk Assessment
-# ---------------------------------------------------------------------------
+# Risk assessment payloads
 
 class AssessmentRequest(BaseModel):
     patient_id: str = Field(..., description="Patient ID (e.g., PT-101)", examples=["PT-101"])
@@ -31,9 +29,7 @@ class AssessmentResponse(BaseModel):
     error: Optional[str] = None
 
 
-# ---------------------------------------------------------------------------
-# Part 2: Chat
-# ---------------------------------------------------------------------------
+# Chat payloads
 
 class ChatRequest(BaseModel):
     session_id: str = Field(..., description="Client-generated session ID")

@@ -1,7 +1,4 @@
-"""
-Gemini Agent — the core reasoning engine that uses Google Generative AI
-to perform risk assessment (Part 1) and conversational Q&A (Part 2).
-"""
+"""Agent logic for risk assessment and guideline chat."""
 
 import json
 import logging
@@ -16,14 +13,12 @@ from app.vector_store import search_guidelines
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Configure Gemini
-# ---------------------------------------------------------------------------
+# Configure Gemini once on import.
 genai.configure(api_key=GOOGLE_API_KEY)
 
 
 def _build_context_from_chunks(chunks: list[dict]) -> str:
-    """Format retrieved guideline chunks into a readable context block."""
+    """Turn retrieved chunks into a plain-text context block."""
     if not chunks:
         return "No relevant guideline sections were retrieved."
 
@@ -36,18 +31,11 @@ def _build_context_from_chunks(chunks: list[dict]) -> str:
     return "\n\n".join(sections)
 
 
-# ---------------------------------------------------------------------------
-# Part 1: Risk Assessment
-# ---------------------------------------------------------------------------
+# Risk assessment flow
 
 def assess_patient(patient_id: str, top_k: int = TOP_K_DEFAULT) -> dict:
-    """
-    Full risk assessment pipeline:
-    1. Retrieve patient data (tool use)
-    2. Search vector store for relevant NG12 sections (RAG)
-    3. Gemini reasons over both to produce structured assessment
-    """
-    # Step 1: Tool use — fetch patient record
+    """Run patient lookup, retrieval, and model reasoning end-to-end."""
+    # 1) Pull the patient record.
     patient = get_patient(patient_id)
     if patient is None:
         return {
@@ -57,19 +45,19 @@ def assess_patient(patient_id: str, top_k: int = TOP_K_DEFAULT) -> dict:
 
     logger.info(f"Assessing patient {patient_id}: {patient['name']}")
 
-    # Step 2: RAG — build search queries from patient symptoms
+    # 2) Build retrieval queries from symptoms and demographics.
     symptom_queries = []
     for symptom in patient["symptoms"]:
-        # Query with symptom + age context for better retrieval
+        # Add age + sex context to improve retrieval precision.
         query = f"{symptom} age {patient['age']} {patient['gender']}"
         symptom_queries.append(query)
 
-    # Also search for the symptom alone and with smoking context
+    # Add smoking-aware variants when history is relevant.
     if patient.get("smoking_history") in ("Current Smoker", "Ex-Smoker"):
         for symptom in patient["symptoms"]:
             symptom_queries.append(f"{symptom} smoking smoker")
 
-    # Deduplicate and search
+    # Run retrieval and dedupe by chunk id.
     all_chunks = []
     seen_chunk_ids = set()
     for query in symptom_queries:
@@ -79,13 +67,13 @@ def assess_patient(patient_id: str, top_k: int = TOP_K_DEFAULT) -> dict:
                 seen_chunk_ids.add(chunk["chunk_id"])
                 all_chunks.append(chunk)
 
-    # Sort by relevance score and take top results
+    # Keep the strongest chunks and pass extra context to the model.
     all_chunks.sort(key=lambda x: x["score"], reverse=True)
-    top_chunks = all_chunks[:top_k * 2]  # Allow more context for better reasoning
+    top_chunks = all_chunks[:top_k * 2]  # Keep more than top_k for better grounding.
 
     context = _build_context_from_chunks(top_chunks)
 
-    # Step 3: Reasoning — Gemini synthesizes assessment
+    # 3) Ask Gemini for the structured assessment.
     user_prompt = f"""## Patient Record
 - **Patient ID**: {patient['patient_id']}
 - **Name**: {patient['name']}
@@ -109,18 +97,18 @@ Assess this patient against the NICE NG12 guideline criteria. Determine the appr
     response = model.generate_content(
         user_prompt,
         generation_config=genai.types.GenerationConfig(
-            temperature=0.1,  # Low temperature for deterministic clinical reasoning
+            temperature=0.1,  # Prefer consistent, low-variance output.
             max_output_tokens=4096,
         ),
     )
 
-    # Parse the JSON response
+    # Parse model output as JSON.
     response_text = response.text.strip()
 
-    # Clean markdown fences if present
+    # Strip accidental markdown fences.
     if response_text.startswith("```"):
         lines = response_text.split("\n")
-        # Remove first and last lines (fences)
+        # Drop any line that looks like a code fence.
         lines = [l for l in lines if not l.strip().startswith("```")]
         response_text = "\n".join(lines)
 
@@ -136,7 +124,7 @@ Assess this patient against the NICE NG12 guideline criteria. Determine the appr
             "reasoning": "The model response could not be parsed as JSON. See raw_response.",
         }
 
-    # Attach the retrieved chunks as metadata for transparency
+    # Return a short trace of retrieved chunks for debugging/transparency.
     assessment["retrieved_chunks"] = [
         {
             "chunk_id": c["chunk_id"],
@@ -150,21 +138,19 @@ Assess this patient against the NICE NG12 guideline criteria. Determine the appr
     return assessment
 
 
-# ---------------------------------------------------------------------------
-# Part 2: Conversational Chat
-# ---------------------------------------------------------------------------
+# Chat flow
 
-# In-memory session storage
+# Session memory stored in-process.
 _sessions: dict[str, list[dict]] = {}
 
 
 def get_chat_history(session_id: str) -> list[dict]:
-    """Retrieve conversation history for a session."""
+    """Return chat history for a session id."""
     return _sessions.get(session_id, [])
 
 
 def clear_chat_history(session_id: str) -> bool:
-    """Clear conversation history for a session."""
+    """Delete chat history for a session id."""
     if session_id in _sessions:
         del _sessions[session_id]
         return True
@@ -172,36 +158,32 @@ def clear_chat_history(session_id: str) -> bool:
 
 
 def chat(session_id: str, message: str, top_k: int = TOP_K_DEFAULT) -> dict:
-    """
-    Multi-turn conversational Q&A over the NG12 guidelines.
-    Uses conversation history for context and RAG for grounding.
-    """
-    # Initialize session if new
+    """Answer a question using RAG plus recent chat history."""
+    # Create session state if needed.
     if session_id not in _sessions:
         _sessions[session_id] = []
 
     history = _sessions[session_id]
 
-    # Build a search query that incorporates conversation context
-    # For follow-ups, combine with recent context
+    # Blend the new question with recent context for follow-ups.
     search_query = message
     if history:
-        # Include the last exchange for context in the search query
+        # Use only the latest exchange to keep the query short.
         last_messages = history[-2:]  # Last user + assistant messages
         context_snippets = [m["content"][:100] for m in last_messages]
         search_query = f"{message} {' '.join(context_snippets)}"
 
-    # RAG retrieval
+    # Retrieve relevant guideline chunks.
     chunks = search_guidelines(search_query, top_k=top_k)
     context = _build_context_from_chunks(chunks)
 
-    # Build conversation history for Gemini
+    # Convert local history to Gemini chat format.
     gemini_history = []
-    for msg in history[-10:]:  # Keep last 10 messages for context window
+    for msg in history[-10:]:  # Last 10 messages keeps context without bloating tokens.
         role = "user" if msg["role"] == "user" else "model"
         gemini_history.append({"role": role, "parts": [msg["content"]]})
 
-    # Create the current prompt with retrieved context
+    # Current question plus retrieved evidence.
     user_prompt = f"""## Retrieved NG12 Guideline Sections
 {context}
 
@@ -215,7 +197,7 @@ Please answer the question based ONLY on the retrieved guideline sections above.
         system_instruction=CHAT_SYSTEM_PROMPT,
     )
 
-    # Start chat with history
+    # Run response generation with prior turns.
     chat_session = model.start_chat(history=gemini_history)
     response = chat_session.send_message(
         user_prompt,
@@ -227,11 +209,11 @@ Please answer the question based ONLY on the retrieved guideline sections above.
 
     answer = response.text.strip()
 
-    # Store in session history
+    # Save this round in memory.
     history.append({"role": "user", "content": message})
     history.append({"role": "assistant", "content": answer})
 
-    # Build citations from retrieved chunks
+    # Expose retrieved chunk metadata as citations.
     citations = [
         {
             "source": "NG12 PDF",

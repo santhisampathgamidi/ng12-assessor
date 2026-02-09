@@ -1,6 +1,5 @@
 """
-PDF Ingestion Script — standalone script to parse the NG12 PDF
-and build the ChromaDB vector index.
+Standalone helper to parse the NG12 PDF and build the Chroma index.
 
 Usage:
     python -m scripts.ingest_pdf [--pdf-path /path/to/ng12.pdf] [--force]
@@ -11,7 +10,7 @@ import logging
 import sys
 from pathlib import Path
 
-# Add project root to path
+# Let this script import from `app/` when run as a module or file.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.vector_store import build_vector_store, parse_pdf, chunk_pages
